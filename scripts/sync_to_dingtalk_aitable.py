@@ -92,27 +92,34 @@ def setup_logging(log_file: Path, verbose: bool = False):
 
 
 # ── dws CLI 调用 ──
+def find_dws() -> str:
+    """
+    查找 dws 可执行文件，按以下优先级：
+    1. DWS_PATH 环境变量
+    2. 项目自带的 bin/dws (仓库 bin/ 目录)
+    3. PATH 中的 dws
+    """
+    # 1. 环境变量
+    env_path = os.environ.get("DWS_PATH", "")
+    if env_path:
+        return env_path
+
+    # 2. 项目自带的 dws（仓库根目录 bin/ 下）
+    project_bin = SCRIPT_DIR.parent / "bin"
+    if sys.platform == "win32":
+        bundled = project_bin / "dws.exe"
+    else:
+        bundled = project_bin / "dws"
+    if bundled.exists():
+        return str(bundled)
+
+    # 3. PATH 中查找
+    return "dws"
+
+
 def run_dws(args: list, logger: logging.Logger, timeout: int = 120) -> dict | None:
     """执行 dws 命令并返回 JSON 结果"""
-    dws_path = os.environ.get("DWS_PATH", "")
-    if not dws_path:
-        bin_dir = Path.home() / ".qoderworkcn" / "bin"
-        ext_dir = bin_dir / "ext"
-        if sys.platform == "win32":
-            # 优先使用 dws-core 直接调用（绕过 shim 的 hook 机制）
-            core_exe = ext_dir / "dws-core-windows-amd64.exe"
-            if core_exe.exists():
-                dws_path = str(core_exe)
-            else:
-                dws_cmd = bin_dir / "dws.cmd"
-                dws_path = str(dws_cmd) if dws_cmd.exists() else "dws"
-        else:
-            core_exe = ext_dir / "dws-core-linux-amd64"
-            if core_exe.exists():
-                dws_path = str(core_exe)
-            else:
-                dws_bin = bin_dir / "dws"
-                dws_path = str(dws_bin) if dws_bin.exists() else "dws"
+    dws_path = find_dws()
     cmd = [dws_path] + args + ["--format", "json"]
     logger.debug(f"执行: {' '.join(cmd[:6])}...")
 
@@ -129,7 +136,8 @@ def run_dws(args: list, logger: logging.Logger, timeout: int = 120) -> dict | No
         logger.error(f"dws 命令超时 ({timeout}s)")
         return None
     except FileNotFoundError:
-        logger.error(f"未找到 dws 命令，请确认已安装并在 PATH 中")
+        logger.error(f"未找到 dws 命令，请运行 setup 脚本安装，或手动下载: "
+                      f"https://github.com/DingTalk-Real-AI/dingtalk-workspace-cli/releases")
         return None
     except json.JSONDecodeError as e:
         logger.error(f"JSON 解析失败: {e}")

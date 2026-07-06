@@ -53,14 +53,67 @@ API Key 需要有以下权限（仅读取）：`GET /api/v2/search/tickets`、`G
 
 ### dws CLI（钉钉同步需要）
 
-`dws` 是钉钉工作台 CLI 工具，用于操作 AI 表格。安装步骤：
+`dws` 是钉钉工作台 CLI 工具（[dingtalk-workspace-cli](https://github.com/DingTalk-Real-AI/dingtalk-workspace-cli)），用于操作 AI 表格。
 
-1. **安装 QoderWork**：从 [https://qoder.com](https://qoder.com) 下载并安装 QoderWork 桌面应用
-2. **连接钉钉账号**：在 QoderWork 中打开"连接器"设置，完成钉钉账号授权
-3. **dws 自动安装**：授权完成后，`dws-core` 二进制文件会自动下载到 `~/.qoderworkcn/bin/ext/` 目录
-4. **验证安装**：同步脚本会自动在该路径查找 dws-core，无需手动配置 PATH
+**方式 1：使用 setup 脚本自动安装（推荐）**
+
+```bash
+# Windows
+setup.bat
+
+# Linux / macOS
+bash setup.sh
+```
+
+脚本会自动从 GitHub 下载 dws 到 `bin/` 目录，并安装 Python 依赖。
+
+**方式 2：手动安装**
+
+从 [GitHub Releases](https://github.com/DingTalk-Real-AI/dingtalk-workspace-cli/releases) 下载对应平台的压缩包，解压后将 `dws.exe`（Windows）或 `dws`（Linux/macOS）放入项目根目录的 `bin/` 文件夹。
+
+也可以通过 npm 全局安装：
+```bash
+npm install -g dingtalk-workspace-cli
+```
+
+**方式 3：使用 QoderWork 内置的 dws**
+
+如果已安装 [QoderWork](https://qoder.com) 并连接了钉钉账号，可通过环境变量指向内置的 dws：
+```bash
+# Windows
+set DWS_PATH=%USERPROFILE%\.qoderworkcn\bin\ext\dws-core-windows-amd64.exe
+
+# Linux/macOS
+export DWS_PATH=~/.qoderworkcn/bin/ext/dws-core-linux-amd64
+```
+
+**dws 查找优先级：**
+1. `DWS_PATH` 环境变量
+2. 项目自带 `bin/dws.exe`（Windows）或 `bin/dws`（Linux/macOS）
+3. PATH 中的 `dws`
 
 > **注意**：dws 的"删除记录"权限属于中等风险，首次运行时需要在浏览器中完成一次授权。建议选择"永久授权"以避免每次运行都需要手动确认。在 Windows Task Scheduler 无人值守环境下，如果未选择永久授权，删除操作会因无法弹出浏览器而失败。
+
+## 环境初始化
+
+首次使用请运行 setup 脚本，自动完成所有依赖安装：
+
+```bash
+# Windows
+setup.bat
+
+# Linux / macOS
+bash setup.sh
+
+# 仅检查环境（不安装）
+setup.bat --check
+bash setup.sh --check
+```
+
+setup 脚本会：
+1. 检查 Python 3.10+ 是否可用
+2. 安装 Python 依赖（`openpyxl`、`requests`）
+3. 从 GitHub 下载 `dws` CLI 到 `bin/` 目录
 
 ## 快速开始
 
@@ -128,6 +181,10 @@ python scripts/sync_to_dingtalk_aitable.py --dry-run --verbose
 ```
 ├── README.md
 ├── .gitignore
+├── setup.bat                       # Windows 环境初始化
+├── setup.sh                        # Linux/macOS 环境初始化
+├── bin/
+│   └── dws.exe                     # dws CLI（setup 自动下载，或手动放入）
 └── scripts/
     ├── mx_daily_report.py           # Freshdesk 数据拉取
     ├── create_daily_excel.py         # Excel 报告生成
