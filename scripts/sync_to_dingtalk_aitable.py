@@ -442,23 +442,37 @@ def sync_to_aitable(excel_path: Path, dry_run: bool, logger: logging.Logger,
     logger.info("\n[Step 2/4] 查询 AI 表格现有记录...")
     existing_records = query_all_records(logger)
 
-    # ── Step 3: 删除当月记录 ──
-    logger.info("\n[Step 3/4] 清理当月数据...")
-    current_month_ids = []
-    other_month_ids = []
+    # ── Step 3: 删除需要替换的记录 ──
+    logger.info("\n[Step 3/4] 清理需要替换的数据...")
+    to_delete_ids = []
+    other_ids = []
 
-    for rec in existing_records:
-        rec_month = get_record_month(rec)
-        rec_id = rec.get("recordId")
-        if not rec_id:
-            continue
-        if rec_month == current_month:
-            current_month_ids.append(rec_id)
-        else:
-            other_month_ids.append(rec_id)
+    if override_date:
+        # --date 模式（补录）：只删除同一天的记录，不影响其他日期
+        logger.info(f"[补录模式] 只删除日期 {today} 的现有记录，保留其他日期")
+        for rec in existing_records:
+            rec_date = rec.get("cells", {}).get(FIELD_MAP["Data Retrieval Date"], "")
+            rec_id = rec.get("recordId")
+            if not rec_id:
+                continue
+            if rec_date == today:
+                to_delete_ids.append(rec_id)
+            else:
+                other_ids.append(rec_id)
+    else:
+        # 默认模式（每日同步）：删除当月所有记录，保留历史月份
+        for rec in existing_records:
+            rec_month = get_record_month(rec)
+            rec_id = rec.get("recordId")
+            if not rec_id:
+                continue
+            if rec_month == current_month:
+                to_delete_ids.append(rec_id)
+            else:
+                other_ids.append(rec_id)
 
-    logger.info(f"当月 ({current_month}) 记录: {len(current_month_ids)} 条 → 将删除")
-    logger.info(f"其他月份记录: {len(other_month_ids)} 条 → 保留")
+    logger.info(f"将删除: {len(to_delete_ids)} 条记录")
+    logger.info(f"保留: {len(other_ids)} 条记录")
 
     # 显示保留的记录月份分布
     month_counts = {}
@@ -470,12 +484,12 @@ def sync_to_aitable(excel_path: Path, dry_run: bool, logger: logging.Logger,
         for m in sorted(month_counts.keys()):
             logger.info(f"  保留 {m}: {month_counts[m]} 条")
 
-    if current_month_ids:
-        if not delete_records_batch(current_month_ids, logger):
-            logger.error("删除当月记录失败，中止同步")
+    if to_delete_ids:
+        if not delete_records_batch(to_delete_ids, logger):
+            logger.error("删除记录失败，中止同步")
             return False
     else:
-        logger.info("当月无现有记录，跳过删除")
+        logger.info("无需删除记录")
 
     # ── Step 4: 写入当天新数据 ──
     logger.info("\n[Step 4/4] 写入当天新数据...")
@@ -487,8 +501,8 @@ def sync_to_aitable(excel_path: Path, dry_run: bool, logger: logging.Logger,
     logger.info(f"\n{'='*60}")
     logger.info(f"同步完成!")
     logger.info(f"  写入: {len(new_records)} 条记录 (日期: {today})")
-    logger.info(f"  删除: {len(current_month_ids)} 条旧记录")
-    logger.info(f"  保留: {len(other_month_ids)} 条历史月份记录")
+    logger.info(f"  删除: {len(to_delete_ids)} 条旧记录")
+    logger.info(f"  保留: {len(other_ids)} 条历史记录")
     logger.info(f"  表格链接: https://docs.dingtalk.com/i/nodes/{BASE_ID}")
     logger.info(f"{'='*60}")
     return True

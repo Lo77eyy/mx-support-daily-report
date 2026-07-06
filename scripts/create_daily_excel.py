@@ -214,11 +214,15 @@ def build_excel(data, output_path):
 
 
 if __name__ == "__main__":
+    from pathlib import Path
+    _script_dir = Path(__file__).resolve().parent
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", "-i",
-                        default="C:/Users/GL/.qoderworkcn/workspace/mr2y9wr285i946sj/mx_daily_report_data.json")
+                        default=str(_script_dir / "mx_daily_report_data.json"),
+                        help="输入 JSON 路径 (默认: 脚本同目录下的 mx_daily_report_data.json)")
     parser.add_argument("--output", "-o",
-                        default="C:/Users/GL/.qoderworkcn/workspace/mr2y9wr285i946sj/outputs/MX_Support_Daily_Report.xlsx")
+                        default=str(_script_dir / "MX_Support_Daily_Report.xlsx"),
+                        help="输出 Excel 路径 (默认: 脚本同目录下的 MX_Support_Daily_Report.xlsx)")
     args = parser.parse_args()
 
     with open(args.input, "r", encoding="utf-8") as f:
