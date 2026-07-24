@@ -13,8 +13,9 @@ MX Support Daily Report — 按日分组拉取 MX Support 工单数据
 
 用法：
   set FRESHDESK_API_KEY=你的API密钥
-  set FRESHDESK_DOMAIN=glinetservice.freshdesk.com
   python mx_daily_report.py
+
+域名在 config.json 中配置（freshdesk.domain），也可通过 FRESHDESK_DOMAIN 环境变量覆盖。
 
 默认拉取墨西哥时区今天的数据。
 可通过 --start-date 和 --end-date 指定日期范围。

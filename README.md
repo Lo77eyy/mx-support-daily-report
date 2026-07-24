@@ -42,12 +42,13 @@ pip install openpyxl
 
 ### Freshdesk API（数据拉取需要）
 
-设置环境变量：
+设置 API 密钥环境变量：
 
 ```bash
 set FRESHDESK_API_KEY=你的API密钥
-set FRESHDESK_DOMAIN=glinetservice.freshdesk.com
 ```
+
+Freshdesk 域名在 `config.json` 中配置（见下方"配置"章节），也可通过环境变量 `FRESHDESK_DOMAIN` 覆盖。
 
 API Key 需要有以下权限（仅读取）：`GET /api/v2/search/tickets`、`GET /api/v2/tickets/{id}`、`GET /api/v2/tickets/{id}/conversations`、`GET /api/v2/agents/{id}`
 
@@ -117,6 +118,43 @@ setup 脚本会：
 
 ## 快速开始
 
+### 配置
+
+首次使用前，需要创建本地配置文件：
+
+```bash
+copy config.example.json config.json
+```
+
+然后编辑 `config.json`，填入你的环境信息：
+
+```json
+{
+    "freshdesk": {
+        "domain": "your-company.freshdesk.com",
+        "group_id": 1234567890
+    },
+    "dingtalk": {
+        "aitable_base_id": "your-ai-table-base-id",
+        "aitable_table_id": "your-data-table-id",
+        "notify_user_id": "dingtalk-user-id-to-notify",
+        "notify_open_dingtalk_id": "open-dingtalk-id-for-file-messages",
+        "field_map": {
+            "Agent Name": "field-id-for-agent-name",
+            "Data Retrieval Date": "field-id-for-date",
+            "Needs Follow Up": "field-id-for-follow-up",
+            "Tickets Under Name": "field-id-for-tickets",
+            "Tickets Escalated": "field-id-for-escalated"
+        },
+        "formula_field_ids": []
+    }
+}
+```
+
+> `config.json` 已加入 `.gitignore`，不会提交到仓库。`FRESHDESK_API_KEY` 是密钥，只能通过环境变量设置，不写入任何文件。
+
+详细的字段说明和获取方式请参考 [DEPLOY.md](DEPLOY.md)。
+
 ### 一键运行全流程（推荐）
 
 ```bash
@@ -153,45 +191,71 @@ python scripts/sync_to_dingtalk_aitable.py --dry-run --verbose
 
 ## Windows 定时任务
 
-### 方式 1：全流程 pipeline（推荐）
+### 方式 1：自动注册（推荐）
 
-使用 `scripts/run_daily_pipeline.bat`，一键完成拉取 + 生成 + 同步：
+项目提供了两个注册脚本，会自动创建 Windows 计划任务：
+
+```powershell
+# 每天早上 08:00 运行
+powershell -ExecutionPolicy Bypass -File register_morning_task.ps1
+
+# 每天晚上 23:00 运行
+powershell -ExecutionPolicy Bypass -File register_task.ps1
+```
+
+注册后，定时任务会调用 `run_scheduled.ps1`，自动完成：
+1. 检查钉钉认证状态
+2. 拉取 Freshdesk 数据 → 生成 Excel → 同步到钉钉 AI 表格
+3. 发送文本通知到指定钉钉用户
+4. 上传 Excel 文件并通过钉钉发送
+
+所有路径基于脚本所在目录（`$PSScriptRoot`），无需硬编码，可移植到任意位置。
+
+### 方式 2：手动创建计划任务
 
 1. 打开"任务计划程序" (Task Scheduler)
 2. 创建基本任务 → 每天触发（建议墨西哥时间 20:00 后，确保当天工单数据完整）
-3. 操作：启动程序 → 选择 `run_daily_pipeline.bat` 的完整路径
-4. 确保运行该任务的用户环境中已设置 `FRESHDESK_API_KEY` 和 `FRESHDESK_DOMAIN`
+3. 操作：启动程序 → 程序填 `powershell.exe`，参数填 `-ExecutionPolicy Bypass -WindowStyle Hidden -File "完整路径\run_scheduled.ps1"`，起始位置填项目根目录
+4. 确保运行该任务的用户环境中已设置 `FRESHDESK_API_KEY`
 
-### 方式 2：仅同步（Excel 已由其他方式生成）
+### 方式 3：仅 pipeline（不含钉钉通知）
 
-使用 `scripts/sync_to_dingtalk_aitable.bat`，仅执行钉钉同步步骤。
+使用 `run_scheduled.bat`，仅执行数据拉取 + Excel 生成 + AI 表格同步，不发送钉钉通知。
 
 ### Python 路径自动检测
 
-`.bat` 脚本会按以下顺序自动查找 Python：
+所有脚本会按以下顺序自动查找 Python：
 
 1. `py -3`（Python Launcher for Windows）
 2. `python`（PATH 中查找）
 3. `%LOCALAPPDATA%\Programs\Python\` 下的各版本（3.14 → 3.10）
 
-如果以上都找不到，请手动编辑 `.bat` 文件添加 Python 路径。
+如果以上都找不到，请安装 Python 3.10+ 并添加到 PATH。
 
 ## 项目结构
 
 ```
 ├── README.md
+├── DEPLOY.md                         # 新机器部署指南
 ├── .gitignore
-├── setup.bat                       # Windows 环境初始化
-├── setup.sh                        # Linux/macOS 环境初始化
+├── config.example.json               # 配置模板（提交到仓库）
+├── config.json                       # 本地配置（gitignore，不提交）
+├── setup.bat                         # Windows 环境初始化
+├── setup.sh                          # Linux/macOS 环境初始化
+├── register_task.ps1                 # 注册晚间定时任务（23:00）
+├── register_morning_task.ps1         # 注册早间定时任务（08:00）
+├── run_scheduled.ps1                 # 定时任务执行脚本（全流程 + 钉钉通知）
+├── run_scheduled.bat                 # 定时任务执行脚本（仅 pipeline）
 ├── bin/
-│   └── dws.exe                     # dws CLI（setup 自动下载，或手动放入）
+│   └── dws.exe                       # dws CLI（setup 自动下载）
 └── scripts/
-    ├── mx_daily_report.py           # Freshdesk 数据拉取
-    ├── create_daily_excel.py         # Excel 报告生成
-    ├── sync_to_dingtalk_aitable.py   # 钉钉 AI 表格同步
-    ├── run_daily_pipeline.py         # Python 全流程编排
-    ├── run_daily_pipeline.bat        # Windows 全流程 bat
-    └── sync_to_dingtalk_aitable.bat  # Windows 仅同步 bat
+    ├── config_loader.py               # 共享配置加载器
+    ├── mx_daily_report.py             # Freshdesk 数据拉取
+    ├── create_daily_excel.py          # Excel 报告生成
+    ├── sync_to_dingtalk_aitable.py    # 钉钉 AI 表格同步
+    ├── run_daily_pipeline.py          # Python 全流程编排
+    ├── run_daily_pipeline.bat         # Windows 全流程 bat
+    └── sync_to_dingtalk_aitable.bat   # Windows 仅同步 bat
 ```
 
 ## 数据流
@@ -234,9 +298,10 @@ MX_Support_Daily_Report.xlsx  ← 每日覆盖，固定文件名
 
 | 变量 | 用途 | 必需 |
 |------|------|------|
-| `FRESHDESK_API_KEY` | Freshdesk API 密钥 | 数据拉取 |
-| `FRESHDESK_DOMAIN` | Freshdesk 域名 | 数据拉取 |
+| `FRESHDESK_API_KEY` | Freshdesk API 密钥（仅通过环境变量，不写入文件） | 数据拉取 |
+| `FRESHDESK_DOMAIN` | Freshdesk 域名（可选，覆盖 config.json 中的值） | 数据拉取 |
 | `DWS_PATH` | dws 可执行文件路径（可选，默认自动检测） | 钉钉同步 |
+| `MX_CONFIG` | config.json 自定义路径（可选，默认项目根目录） | — |
 
 ## 注意事项
 
