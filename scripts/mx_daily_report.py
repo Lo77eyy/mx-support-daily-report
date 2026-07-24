@@ -36,7 +36,6 @@ from collections import defaultdict
 sys.stdout.reconfigure(encoding="utf-8")
 
 # ── 配置 ──
-MX_SUPPORT_GROUP_ID = 64000271321
 READ_TIMEOUT = 30
 REQUEST_DELAY = 0.12
 MAX_RETRIES = 5
@@ -159,6 +158,9 @@ def to_mexico_date(iso_str):
 
 
 def main():
+    from config_loader import load_config
+    config = load_config()
+
     parser = argparse.ArgumentParser(description="MX Support Daily Report")
     parser.add_argument("--start-date", default=None,
                         help="Start date YYYY-MM-DD (Mexico time). Default: today")
@@ -168,10 +170,18 @@ def main():
                         help="Output JSON path")
     args = parser.parse_args()
 
+    # Freshdesk domain: env var overrides config
     domain = os.environ.get("FRESHDESK_DOMAIN", "").strip().removeprefix("https://").rstrip("/")
+    if not domain:
+        domain = config.get("freshdesk", {}).get("domain", "").strip().removeprefix("https://").rstrip("/")
     api_key = os.environ.get("FRESHDESK_API_KEY", "")
     if not domain or not api_key:
-        print("请设置环境变量 FRESHDESK_DOMAIN 和 FRESHDESK_API_KEY", file=sys.stderr)
+        print("请设置环境变量 FRESHDESK_API_KEY，并在 config.json 中配置 freshdesk.domain", file=sys.stderr)
+        sys.exit(1)
+
+    mx_group_id = config.get("freshdesk", {}).get("group_id", 0)
+    if not mx_group_id:
+        print("请在 config.json 中配置 freshdesk.group_id", file=sys.stderr)
         sys.exit(1)
 
     # 确定日期范围
@@ -189,7 +199,7 @@ def main():
         end_date = now_mx.date()
 
     print(f"域名: {domain}", file=sys.stderr)
-    print(f"MX Support Group ID: {MX_SUPPORT_GROUP_ID}", file=sys.stderr)
+    print(f"MX Support Group ID: {mx_group_id}", file=sys.stderr)
     print(f"日期范围 (墨西哥时区): {start_date} ~ {end_date}", file=sys.stderr)
     print(f"当前墨西哥时间: {now_mx.strftime('%Y-%m-%d %H:%M:%S')}", file=sys.stderr)
 
@@ -197,7 +207,7 @@ def main():
     print("\n[1/4] 搜索所有 MX Support 工单...", file=sys.stderr)
     all_tickets = []
     for status_name, status_code in [("Open", 2), ("Pending", 3), ("Resolved", 4), ("Closed", 5)]:
-        query = f"group_id:{MX_SUPPORT_GROUP_ID} AND status:{status_code}"
+        query = f"group_id:{mx_group_id} AND status:{status_code}"
         tickets = search_tickets(domain, api_key, query)
         print(f"  {status_name}: {len(tickets)} 条", file=sys.stderr)
         all_tickets.extend(tickets)
@@ -325,7 +335,7 @@ def main():
     output = {
         "domain": domain,
         "group": "MX Support",
-        "group_id": MX_SUPPORT_GROUP_ID,
+        "group_id": mx_group_id,
         "summary": summary,
         "daily_data": daily_data,
         "all_tickets": ticket_data,

@@ -167,13 +167,20 @@ echo.
 if defined FRESHDESK_API_KEY (
     echo [OK] FRESHDESK_API_KEY: 已设置
 ) else (
-    echo [!!] FRESHDESK_API_KEY: 未设置（拉取 Freshdesk 数据需要）
+    echo [!!] FRESHDESK_API_KEY: 未设置（拉取 Freshdesk 数据需要，通过环境变量设置）
 )
 
 if defined FRESHDESK_DOMAIN (
     echo [OK] FRESHDESK_DOMAIN: %FRESHDESK_DOMAIN%
 ) else (
-    echo [!!] FRESHDESK_DOMAIN: 未设置（拉取 Freshdesk 数据需要）
+    echo [..] FRESHDESK_DOMAIN: 未设置环境变量（将在 config.json 中读取）
+)
+
+REM 检查 config.json
+if exist "%PROJECT_DIR%\config.json" (
+    echo [OK] config.json: 已存在
+) else (
+    echo [!!] config.json: 未找到（请复制 config.example.json 并填写配置）
 )
 
 echo.
@@ -181,11 +188,13 @@ echo ============================================================
 echo  设置说明
 echo ============================================================
 echo.
-echo  环境变量（系统或用户级别）:
-echo    setx FRESHDESK_API_KEY "你的API密钥"
-echo    setx FRESHDESK_DOMAIN "glinetservice.freshdesk.com"
+echo  1. 复制配置文件并填写你的信息:
+echo     copy config.example.json config.json
 echo.
-echo  钉钉授权（首次运行同步时需要在浏览器中授权）
+echo  2. 设置 Freshdesk API Key (环境变量，不要写入配置文件):
+echo     setx FRESHDESK_API_KEY "你的API密钥"
+echo.
+echo  3. 钉钉授权（首次运行同步时需要在浏览器中授权）
 echo.
 echo ============================================================
 

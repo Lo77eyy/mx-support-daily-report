@@ -1,0 +1,20 @@
+{
+    "freshdesk": {
+        "domain": "YOUR_DOMAIN.freshdesk.com",
+        "group_id": 0
+    },
+    "dingtalk": {
+        "aitable_base_id": "",
+        "aitable_table_id": "",
+        "notify_user_id": "",
+        "notify_open_dingtalk_id": "",
+        "field_map": {
+            "Agent Name": "",
+            "Data Retrieval Date": "",
+            "Needs Follow Up": "",
+            "Tickets Under Name": "",
+            "Tickets Escalated": ""
+        },
+        "formula_field_ids": []
+    }
+}

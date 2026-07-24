@@ -173,10 +173,12 @@ echo "============================================================"
 echo " 设置说明"
 echo "============================================================"
 echo
-echo " 环境变量（添加到 ~/.bashrc 或 ~/.zshrc）:"
-echo "   export FRESHDESK_API_KEY='你的API密钥'"
-echo "   export FRESHDESK_DOMAIN='glinetservice.freshdesk.com'"
+echo " 1. 复制配置文件并填写你的信息:"
+echo "    cp config.example.json config.json"
 echo
-echo " 钉钉授权（首次运行同步时需要在浏览器中授权）"
+echo " 2. 设置 Freshdesk API Key (环境变量，不要写入配置文件):"
+echo "    export FRESHDESK_API_KEY='你的API密钥'"
+echo
+echo " 3. 钉钉授权（首次运行同步时需要在浏览器中授权）"
 echo
 echo "============================================================"

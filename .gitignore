@@ -13,15 +13,23 @@ venv/
 .venv/
 env/
 
+# Config (contains environment-specific IDs and settings)
+config.json
+
 # Data files (generated)
 *.json
+!config.example.json
 *.xlsx
 *.xls
 *.csv
 
 # Logs
+logs/
 *.log
 sync_log.txt
+
+# dws CLI binary (downloaded by setup script)
+bin/
 
 # Temp files
 _temp_*

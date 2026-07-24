@@ -46,21 +46,13 @@ if sys.platform == "win32":
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # ── 常量 ──
-BASE_ID = "G1DKw2zgV2RMNjKnTqOe2QlpVB5r9YAn"
-TABLE_ID = "1UX24kY"
 MEXICO_TZ = timezone(timedelta(hours=-6))
 
-# 字段映射: Excel 列名 → AI 表格 fieldId
-FIELD_MAP = {
-    "Agent Name": "q2wRl1Y",           # Agent name (text)
-    "Data Retrieval Date": "l1EhlmN",   # Data Retrieval Date (text)
-    "Needs Follow Up": "7Nl3WIh",       # Needs Follow Up (text)
-    "Tickets Under Name": "KdcGyWX",    # Tickets Under Name (text)
-    "Tickets Escalated": "eqY8LXW",     # Tickets Escalated (text)
-}
-
-# 公式字段（只读，不写入）
-FORMULA_FIELDS = {"9sEfaXp", "5Ly3zIZ"}  # All Tickets, Month
+# 字段映射和 ID 从 config.json 加载 (通过 config_loader)
+BASE_ID = ""
+TABLE_ID = ""
+FIELD_MAP = {}
+FORMULA_FIELDS = set()
 
 MAX_RECORDS_PER_BATCH = 100
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -544,6 +536,26 @@ def main():
         help="指定同步日期 (YYYY-MM-DD)，默认使用当天墨西哥日期。用于测试或补录历史数据"
     )
     args = parser.parse_args()
+
+    # 从 config.json 加载 AI 表格配置
+    from config_loader import load_config
+    config = load_config()
+    dt_config = config.get("dingtalk", {})
+
+    global BASE_ID, TABLE_ID, FIELD_MAP, FORMULA_FIELDS
+    BASE_ID = dt_config.get("aitable_base_id", "")
+    TABLE_ID = dt_config.get("aitable_table_id", "")
+    FIELD_MAP = dt_config.get("field_map", {})
+    formula_ids = dt_config.get("formula_field_ids", [])
+    FORMULA_FIELDS = set(formula_ids) if formula_ids else set()
+
+    if not BASE_ID or not TABLE_ID:
+        print("ERROR: 请在 config.json 中配置 dingtalk.aitable_base_id 和 dingtalk.aitable_table_id",
+              file=sys.stderr)
+        sys.exit(1)
+    if not FIELD_MAP:
+        print("ERROR: 请在 config.json 中配置 dingtalk.field_map", file=sys.stderr)
+        sys.exit(1)
 
     # 配置日志
     logger = setup_logging(LOG_FILE, args.verbose)
