@@ -11,6 +11,8 @@ $ScriptDir = 'C:\Users\GL\.qoderworkcn\workspace\mr2y9wr285i946sj\repo\mx-suppor
 $Dws = Join-Path $ScriptDir 'bin\dws.exe'
 $LogDir = Join-Path $ScriptDir 'logs'
 $AmieeUserId = '1778031662885144'
+$AmieeOpenDingTalkId = 'Dx1GSQWz7nueNe75QWOnzKD11hHqJiiAb4'
+$ExcelFile = Join-Path $ScriptDir 'scripts\MX_Support_Daily_Report.xlsx'
 
 # Create logs directory
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir | Out-Null }
@@ -104,6 +106,49 @@ if ($DwsExit -eq 0) {
     Write-Log "DingTalk notification sent to Amiee successfully"
 } else {
     Write-Log "Failed to send DingTalk notification (exit code: $DwsExit)"
+}
+
+# Step 4: Upload Excel to DingTalk drive and send as file message
+if (Test-Path $ExcelFile) {
+    Write-Log "Uploading Excel to DingTalk drive..."
+    $UploadOutput = & $Dws drive upload --file $ExcelFile --format json 2>&1
+    $UploadExit = $LASTEXITCODE
+    $UploadOutput | ForEach-Object { Write-Log $_ }
+
+    if ($UploadExit -eq 0) {
+        try {
+            $UploadText = $UploadOutput | Out-String
+            if ($UploadText -match '"fileId"\s*:\s*"([^"]+)"') { $FileId = $Matches[1] }
+            if ($UploadText -match '"spaceId"\s*:\s*"([^"]+)"') { $SpaceId = $Matches[1] }
+            $FileName = [System.IO.Path]::GetFileName($ExcelFile)
+            $FileType = [System.IO.Path]::GetExtension($ExcelFile).TrimStart('.')
+            $FileSize = (Get-Item $ExcelFile).Length
+
+            if ($FileId -and $SpaceId) {
+                Write-Log "Getting dentryId for uploaded file..."
+                $InfoOutput = & $Dws drive info --node $FileId --space-id $SpaceId --format json 2>&1
+                $InfoText = $InfoOutput | Out-String
+                if ($InfoText -match '"dentryId"\s*:\s*"([^"]+)"') {
+                    $DentryId = $Matches[1]
+                    Write-Log "Sending Excel file to Amiee (dentryId: $DentryId)..."
+                    $FileMsgOutput = & $Dws chat message send --open-dingtalk-id $AmieeOpenDingTalkId --msg-type file --dentry-id $DentryId --space-id $SpaceId --file-name $FileName --file-type $FileType --file-path "/$FileName" --file-size $FileSize --format json --yes 2>&1
+                    $FileMsgExit = $LASTEXITCODE
+                    $FileMsgOutput | ForEach-Object { Write-Log $_ }
+                    if ($FileMsgExit -eq 0) {
+                        Write-Log "Excel file sent to Amiee successfully"
+                    } else {
+                        Write-Log "Failed to send Excel file (exit code: $FileMsgExit)"
+                    }
+                }
+            }
+        } catch {
+            Write-Log "Warning: Could not process file upload result - $_"
+        }
+    } else {
+        Write-Log "Failed to upload Excel to DingTalk drive (exit code: $UploadExit)"
+    }
+} else {
+    Write-Log "Warning: Excel file not found at $ExcelFile"
 }
 
 Write-Log "Scheduled task completed"
